@@ -118,11 +118,7 @@ export default {
       this.setupDimension();
     },
     selectedUser() {
-      this.setHeatMapDataAlt(
-        this.users.indexOf(this.selectedUser),
-        this.comparsionDimensions
-      );
-      this.drawHeatMapAlt();
+      this.setupHeatMap();
     },
     alternatives() {
       let res = [];
@@ -150,6 +146,7 @@ export default {
     },
     areaUsers() {
       this.selectedUser = this.areaUsers[0];
+      this.setupHeatMap();
     },
     isShowValues() {
       this.drawHeatMapAlt();
@@ -159,6 +156,13 @@ export default {
     setupDimension() {
       this.sets = this.generateVennSets(this.comparsionDimensions);
       this.drawVenn();
+    },
+    setupHeatMap() {
+      this.setHeatMapDataAlt(
+        this.users.indexOf(this.selectedUser),
+        this.comparsionDimensions
+      );
+      this.drawHeatMapAlt();
     },
     generateUsersPrefs(usersNumber, alternativesNumber, dimensionsNumber) {
       let usersPrefs = [];
@@ -489,7 +493,7 @@ export default {
     },
     drawHeatMapAlt() {
       this.deleteHeatMap();
-      let hmHeight = this.pcAlternatives.length * 50;
+      let hmHeight = this.pcAlternatives.length * 50 + 100;
       // set the dimensions and margins of the graph
       var margin = { top: 10, right: 30, bottom: 100, left: 40 },
         width = 1250 - margin.left - margin.right,
