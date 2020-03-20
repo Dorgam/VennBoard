@@ -1,22 +1,51 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-select
-        v-model="selectedDimension"
-        :items="dimensions"
-        label="Dimension"
-        solo
-      ></v-select>
-    </v-row>
-    <v-row>
-      <div id="venn"></div>
-    </v-row>
-  </v-container>
+  <div>
+    <v-app-bar color="deep-purple accent-4" dense dark>
+      <v-app-bar-nav-icon></v-app-bar-nav-icon>
+      <v-toolbar-title>PrefBoard</v-toolbar-title>
+      <v-spacer></v-spacer>
+    </v-app-bar>
+    <v-container fluid>
+      <v-row>
+        <v-col cols="5">
+          <v-card>
+            <v-select
+              v-model="selectedDimensions"
+              :items="dimensions"
+              label="Select Dimensions"
+              chips
+              solo
+              multiple
+            ></v-select>
+            <div id="venn"></div>
+          </v-card>
+        </v-col>
+        <v-col cols="7" class="pl-0 ml-0" v-show="areaUsers != null && areaUsers.length > 0">
+          <!--<v-card>
+            <div id="pc" class="parcoords" style="width:900px;height:500px"></div>
+          </v-card>-->
+          <v-card class="pl-0 ml-0">
+            <v-row class="mt-0 pt-0">
+              <v-col cols="10" class="my-0 py-0">
+                <v-select v-model="selectedUser" :items="areaUsers" label="Select User" solo></v-select>
+              </v-col>
+              <v-col cols="2" class="my-0 py-0">
+                <v-switch v-model="isShowValues" label="Show Values"></v-switch>
+              </v-col>
+            </v-row>
+            <div class="pl-0 ml-0" id="heatMap"></div>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
+  </div>
 </template>
 
 <script>
 const venn = require("venn.js");
 const d3 = require("d3");
+import "parcoord-es/dist/parcoords.css";
+import ParCoords from "parcoord-es";
 
 export default {
   name: "Home",
@@ -25,32 +54,110 @@ export default {
     sets: [],
     prefs: [],
     usersNumber: 5,
-    alternativesNumber: 250,
+    alternativesNumber: 249,
     usersCombinations: [],
-    dimensions: ["Cost", "Heat", "View", "Form", "FloorsNum"],
-    comparsionDimension: 0,
-    selectedDimension: null
+    dimensions: [
+      "Cantilever",
+      "Commercial Floor Area",
+      "Energy Use",
+      "Height",
+      "Max Wind Load",
+      "Net Solar",
+      "Residential Floor Area",
+      "Retail Floor Area",
+      "Shading Output",
+      "Total Floor Area",
+      "Usable Space",
+      "Views/Floor Area",
+      "Volume/Floor Area",
+      "Volume/Surface Area",
+      "Width Change"
+    ],
+    comparsionDimensions: [],
+    selectedDimensions: null,
+    pcAlternatives: [],
+    pcChart: null,
+    heatMapData: [],
+    heatMapDataAlt: [],
+    usersColors: ["#1f76b4", "#ff7e0e", "#2ca02c", "#d62727", "#9367bd"],
+    activeTab: 0,
+    selectedUser: null,
+    users: [
+      "Designer 1",
+      "Designer 2",
+      "Stakeholder 1",
+      "Stakeholder 2",
+      "City"
+    ],
+    areaUsers: [],
+    selectedAreaAlternativesStrings: [],
+    alternativesInArrayFormat: [],
+    isShowValues: false
   }),
+  computed: {
+    alternatives() {
+      return this.$store.getters.alternatives;
+    }
+  },
   mounted() {
+    this.$store.dispatch("getAlternatives");
     this.prefs = this.generateUsersPrefs(
       this.usersNumber,
       this.alternativesNumber,
       this.dimensions.length
     );
     this.usersCombinations = this.combinations(this.getUsersIndicesArray());
-    //this.setupDimension();
   },
   watch: {
-    selectedDimension() {
-      this.comparsionDimension = this.dimensions.indexOf(
-        this.selectedDimension
-      );
+    selectedDimensions() {
+      let dimensions = [];
+      this.selectedDimensions.forEach(d => {
+        dimensions.push(this.dimensions.indexOf(d));
+      });
+      this.comparsionDimensions = dimensions;
       this.setupDimension();
+    },
+    selectedUser() {
+      this.setHeatMapDataAlt(
+        this.users.indexOf(this.selectedUser),
+        this.comparsionDimensions
+      );
+      this.drawHeatMapAlt();
+    },
+    alternatives() {
+      let res = [];
+      this.alternatives.forEach(alt => {
+        let altArray = [
+          alt["Cantilever"],
+          alt["ComFlrArea"],
+          alt["EnergyUse"],
+          alt["Height"],
+          alt["MaxWindLoad"],
+          alt["NetSolar"],
+          alt["ResFlrArea"],
+          alt["RetFlrArea"],
+          alt["ShadingOutput"],
+          alt["TotalFlrArea"],
+          alt["UsableSpace"],
+          alt["ViewspFlrArea"],
+          alt["VolpFlrArea"],
+          alt["VolpSrfArea"],
+          alt["WidthChange"]
+        ];
+        res.push(altArray);
+      });
+      this.alternativesInArrayFormat = res;
+    },
+    areaUsers() {
+      this.selectedUser = this.areaUsers[0];
+    },
+    isShowValues() {
+      this.drawHeatMapAlt();
     }
   },
   methods: {
     setupDimension() {
-      this.sets = this.generateVennSets(this.comparsionDimension);
+      this.sets = this.generateVennSets(this.comparsionDimensions);
       this.drawVenn();
     },
     generateUsersPrefs(usersNumber, alternativesNumber, dimensionsNumber) {
@@ -79,10 +186,10 @@ export default {
     getRandomBoolean() {
       return Math.random() >= 0.8;
     },
-    generateVennSets(dimension) {
+    generateVennSets(dimensions) {
       let sets = [];
       for (let i = 0; i < this.usersCombinations.length; i++) {
-        sets.push(this.getVennSet(this.usersCombinations[i], dimension));
+        sets.push(this.getVennSet(this.usersCombinations[i], dimensions));
       }
       return sets;
     },
@@ -93,11 +200,14 @@ export default {
       }
       return res;
     },
-    getVennSet(combination, dimension) {
+    getVennSet(combination, dimensions) {
       let alternativePrefsByDimension = [];
-      for (let i = 0; i < combination.length; i++) {
-        alternativePrefsByDimension.push(this.prefs[combination[i]][dimension]);
-      }
+      dimensions.forEach(d => {
+        for (let i = 0; i < combination.length; i++) {
+          alternativePrefsByDimension.push(this.prefs[combination[i]][d]);
+        }
+      });
+
       return {
         sets: this.getCombinationUserStrings(combination),
         size: this.countTrueElements(
@@ -108,7 +218,7 @@ export default {
     getCombinationUserStrings(combination) {
       let strings = [];
       for (let i = 0; i < combination.length; i++) {
-        strings.push("User " + combination[i]);
+        strings.push(this.users[parseInt(combination[i])]);
       }
       return strings;
     },
@@ -205,7 +315,7 @@ export default {
     },
     drawVenn() {
       let chart = venn.VennDiagram();
-      chart.width(800).height(800);
+      chart.width(800).height(500);
       let div = d3.select("#venn");
       div.datum(this.sets).call(chart);
 
@@ -259,7 +369,283 @@ export default {
             .style("stroke-width", 0)
             .style("fill-opacity", d.sets.length == 1 ? 0.25 : 0.0)
             .style("stroke-opacity", 0);
+        })
+
+        .on("click", d => {
+          this.onVennClick(d.sets);
         });
+    },
+    getAlternativesFromIndicesArray(areaAlternativesIndices) {
+      let res = [];
+      this.alternatives.forEach(alt => {
+        let index = alt.index - 1;
+        if (areaAlternativesIndices.includes(index)) {
+          res.push(alt);
+        }
+      });
+      return res;
+    },
+    drawPc() {
+      if (this.pcChart != null) this.deletePc();
+      this.pcChart = ParCoords()("#pc")
+        .data(this.pcAlternatives)
+        .hideAxis([
+          "ID",
+          "_id",
+          "collection",
+          "geometry",
+          "gltf",
+          "image",
+          "index"
+        ])
+        .render()
+        .createAxes()
+        .reorderable();
+    },
+    onVennClick(sets) {
+      let usersIndices = this.getUsersIndicesFromStrings(sets);
+      this.areaUsers = this.getAreaUsers(usersIndices);
+      let areaAlternativesIndices = this.getAlternativesIndiciesAtArea(
+        usersIndices
+      );
+      this.pcAlternatives = this.getAlternativesFromIndicesArray(
+        areaAlternativesIndices
+      );
+      //this.drawPc();
+    },
+    getAlternativesIndiciesAtArea(usersIndices) {
+      let usersArrays = [];
+
+      this.comparsionDimensions.forEach(d => {
+        usersIndices.forEach(userIndex => {
+          usersArrays.push(this.prefs[userIndex][d]);
+        });
+      });
+
+      let andRes = this.andAllArrays(usersArrays);
+      let alternativesIndicies = [];
+      andRes.forEach((alt, index) => {
+        if (alt) {
+          alternativesIndicies.push(index);
+        }
+      });
+      return alternativesIndicies;
+    },
+    getUsersIndicesFromStrings(array) {
+      return array.map(userString => {
+        return this.users.indexOf(userString);
+      });
+    },
+    deletePc() {
+      let pc = document.querySelector("#pc");
+      while (pc.firstChild) {
+        pc.removeChild(pc.firstChild);
+      }
+    },
+    deleteHeatMap() {
+      let heatMap = document.querySelector("#heatMap");
+      while (heatMap.firstChild) {
+        heatMap.removeChild(heatMap.firstChild);
+      }
+    },
+    setHeatMapData() {
+      let res = [];
+      this.prefs.forEach((user, i) => {
+        user.forEach((dimension, j) => {
+          res.push([
+            "U" + i,
+            this.dimensions[j],
+            this.countTrueElements(dimension)
+          ]);
+        });
+      });
+      this.heatMapData = res;
+    },
+    setHeatMapDataAlt(user) {
+      let res = [];
+      let alternativesStrings = [];
+      /*this.prefs[user].forEach((dimension, j) => {
+        dimension.forEach((alt, k) => {
+          let color = alt ? this.usersColors[user] : "white";
+          res.push(["A" + k, this.dimensions[j], color]);
+        });
+      });*/
+      this.prefs[user].forEach((dimension, j) => {
+        this.pcAlternatives.forEach(alt => {
+          let prefIndex = alt.index - 1;
+          let prefValue = this.prefs[user][j][prefIndex];
+          let color = prefValue ? this.usersColors[user] : "black";
+          res.push([
+            "A" + prefIndex,
+            this.dimensions[j],
+            color,
+            this.alternativesInArrayFormat[prefIndex][j]
+          ]);
+          alternativesStrings.push("A" + prefIndex);
+        });
+      });
+      this.selectedAreaAlternativesStrings = alternativesStrings;
+      this.heatMapDataAlt = res;
+    },
+    drawHeatMapAlt() {
+      this.deleteHeatMap();
+      let hmHeight = this.pcAlternatives.length * 50;
+      // set the dimensions and margins of the graph
+      var margin = { top: 10, right: 30, bottom: 100, left: 40 },
+        width = 1250 - margin.left - margin.right,
+        height = hmHeight - margin.top - margin.bottom;
+
+      // append the svg object to the body of the page
+      var svg = d3
+        .select("#heatMap")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" + margin.left + "," + margin.bottom + ")"
+        );
+
+      // Build X scales and axis:
+      var x = d3
+        .scaleBand()
+        .range([0, width])
+        .domain(this.dimensions)
+        .padding(0.01);
+      svg
+        .append("g")
+        //.attr("transform", "translate(0," + height + ")")
+        .call(d3.axisTop(x))
+        .selectAll("text")
+        .attr("y", 0)
+        .attr("x", 9)
+        .attr("dy", ".35em")
+        .attr("transform", "rotate(-65)")
+        .style("text-anchor", "start");
+
+      // Build X scales and axis:
+      var y = d3
+        .scaleBand()
+        .range([height, 0])
+        .domain(this.selectedAreaAlternativesStrings)
+        .padding(0.01);
+      svg.append("g").call(d3.axisLeft(y));
+
+      //Read the data
+      svg
+        .selectAll()
+        .data(this.heatMapDataAlt, function(d) {
+          return d[1] + ":" + d[0];
+        })
+        .enter()
+        .append("rect")
+        .attr("x", function(d) {
+          return x(d[1]);
+        })
+        .attr("y", function(d) {
+          return y(d[0]);
+        })
+        .attr("width", x.bandwidth())
+        .attr("height", y.bandwidth())
+        .style("fill", d => {
+          return d[2];
+        });
+
+      if (!this.isShowValues) return;
+      svg
+        .selectAll()
+        .data(this.heatMapDataAlt, function(d) {
+          return d[1] + ":" + d[0];
+        })
+        .enter()
+        .append("text")
+        .attr("x", function(d) {
+          return x(d[1]) + 2;
+        })
+        .attr("y", function(d) {
+          return y(d[0]) + 30;
+        })
+        .attr("fill", "white")
+        .text(d => {
+          return d[3].toFixed(2);
+        });
+    },
+    drawHeatMap() {
+      // set the dimensions and margins of the graph
+      var margin = { top: 30, right: 30, bottom: 30, left: 120 },
+        width = 600 - margin.left - margin.right,
+        height = 800 - margin.top - margin.bottom;
+
+      // append the svg object to the body of the page
+      var svg = d3
+        .select("#heatMap")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // Build X scales and axis:
+      var x = d3
+        .scaleBand()
+        .range([0, width])
+        .domain(["U0", "U1", "U2", "U3", "U4"])
+        .padding(0.01);
+      svg
+        .append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x));
+
+      // Build X scales and axis:
+      var y = d3
+        .scaleBand()
+        .range([height, 0])
+        .domain(this.dimensions)
+        .padding(0.01);
+      svg.append("g").call(d3.axisLeft(y));
+
+      // Build color scale
+      var myColor = d3
+        .scaleLinear()
+        .range(["white", "#69b3a2"])
+        .domain([1, 100]);
+
+      //Read the data
+      svg
+        .selectAll()
+        .data(this.heatMapData, function(d) {
+          return d[0] + ":" + d[1];
+        })
+        .enter()
+        .append("rect")
+        .attr("x", function(d) {
+          return x(d[0]);
+        })
+        .attr("y", function(d) {
+          return y(d[1]);
+        })
+        .attr("width", x.bandwidth())
+        .attr("height", y.bandwidth())
+        .style("fill", d => {
+          return myColor(Math.round((d[2] / this.alternativesNumber) * 100));
+        });
+    },
+    getAltStrings() {
+      let res = [];
+      for (let i = 0; i < this.alternativesNumber; i++) {
+        res.push("A" + i);
+      }
+      return res;
+    },
+    getAreaUsers(userIndices) {
+      console.log(userIndices);
+      let res = [];
+      userIndices.forEach(index => {
+        res.push(this.users[index]);
+      });
+      console.log(res);
+      return res;
     }
   }
 };
