@@ -14,8 +14,9 @@
             </v-card>
           </v-col>
           <v-col cols="12" class="my-0 py-0">
-            <v-card>
+            <v-card v-show="selectedDimensions.length > 0">
               <v-select
+                v-show="false"
                 v-model="selectedDimensions"
                 :items="sortedDimensions"
                 label="Select Dimensions"
@@ -28,14 +29,26 @@
           </v-col>
         </v-col>
         <v-col cols="7" class="pa-0 ma-0">
-          <v-col cols="12" class="pl-0 ml-0" v-show="areaUsers != null && areaUsers.length > 0">
+          <v-col
+            cols="12"
+            class="pl-0 ml-0"
+            v-show="areaUsers != null && areaUsers.length > 0"
+          >
             <v-card class="pl-0 ml-0">
               <v-row class="mt-0 pt-0">
                 <v-col cols="10" class="my-0 py-0">
-                  <v-select v-model="selectedUser" :items="areaUsers" label="Select User" solo></v-select>
+                  <v-select
+                    v-model="selectedUser"
+                    :items="areaUsers"
+                    label="Select User"
+                    solo
+                  ></v-select>
                 </v-col>
                 <v-col cols="2" class="my-0 py-0">
-                  <v-switch v-model="isShowValues" label="Show Values"></v-switch>
+                  <v-switch
+                    v-model="isShowValues"
+                    label="Show Values"
+                  ></v-switch>
                 </v-col>
               </v-row>
               <div class="pl-0 ml-0" id="heatMap"></div>
@@ -80,7 +93,7 @@ export default {
       "Width Change"
     ],
     comparsionDimensions: [],
-    selectedDimensions: null,
+    selectedDimensions: [],
     pcAlternatives: [],
     pcChart: null,
     heatMapData: [],
@@ -597,8 +610,10 @@ export default {
 
       this.sortedDimensions = barDimensions;
 
+      let selectedDimensionsLocal = this.selectedDimensions;
+
       let ctx = document.getElementById("barChart").getContext("2d");
-      new Chart(ctx, {
+      this.barChart = new Chart(ctx, {
         // The type of chart we want to create
         type: "bar",
 
@@ -609,27 +624,69 @@ export default {
             {
               label:
                 "Count of Liked Alternatives That All Users Agree On Per Dimension",
-              backgroundColor: "#c2c5cc",
+              backgroundColor: [
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc",
+                "#c2c5cc"
+              ],
               borderColor: "#c2c5cc",
               data: data
             }
-          ],
-          options: {
-            scales: {
-              yAxes: [
-                {
-                  ticks: {
-                    stepSize: 1,
-                    autoSkip: false
-                  }
-                }
-              ]
-            }
-          }
+          ]
         },
 
         // Configuration options go here
-        options: {}
+        options: {
+          responsive: true,
+          events: ["click", "mousemove"],
+          onClick: function(c, i) {
+            let e = i[0];
+            if (e == null || e == undefined) return;
+
+            console.log(e._index);
+
+            var x_value = this.data.labels[e._index];
+            var y_value = this.data.datasets[0].data[e._index];
+
+            this.data.datasets[0].backgroundColor[e._index] =
+              this.data.datasets[0].backgroundColor[e._index] == "#c2c5cc"
+                ? "red"
+                : "#c2c5cc";
+
+            console.log(x_value);
+            console.log(y_value);
+
+            const index = selectedDimensionsLocal.indexOf(x_value);
+            if (index > -1) {
+              selectedDimensionsLocal.splice(index, 1);
+            } else {
+              selectedDimensionsLocal.push(x_value);
+            }
+
+            this.update();
+          },
+          scales: {
+            yAxes: [
+              {
+                ticks: {
+                  stepSize: 1
+                }
+              }
+            ]
+          }
+        }
       });
     }
   }
