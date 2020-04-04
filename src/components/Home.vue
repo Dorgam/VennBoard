@@ -7,34 +7,40 @@
     </v-app-bar>
     <v-container fluid>
       <v-row>
-        <v-col cols="5">
-          <v-card>
-            <v-select
-              v-model="selectedDimensions"
-              :items="dimensions"
-              label="Select Dimensions"
-              chips
-              solo
-              multiple
-            ></v-select>
-            <div id="venn"></div>
-          </v-card>
+        <v-col cols="5" class="pt-0 mt-0 mr-0 pt-0">
+          <v-col cols="12" class="my-0">
+            <v-card>
+              <canvas id="barChart"></canvas>
+            </v-card>
+          </v-col>
+          <v-col cols="12" class="my-0 py-0">
+            <v-card>
+              <v-select
+                v-model="selectedDimensions"
+                :items="sortedDimensions"
+                label="Select Dimensions"
+                chips
+                solo
+                multiple
+              ></v-select>
+              <div id="venn"></div>
+            </v-card>
+          </v-col>
         </v-col>
-        <v-col cols="7" class="pl-0 ml-0" v-show="areaUsers != null && areaUsers.length > 0">
-          <!--<v-card>
-            <div id="pc" class="parcoords" style="width:900px;height:500px"></div>
-          </v-card>-->
-          <v-card class="pl-0 ml-0">
-            <v-row class="mt-0 pt-0">
-              <v-col cols="10" class="my-0 py-0">
-                <v-select v-model="selectedUser" :items="areaUsers" label="Select User" solo></v-select>
-              </v-col>
-              <v-col cols="2" class="my-0 py-0">
-                <v-switch v-model="isShowValues" label="Show Values"></v-switch>
-              </v-col>
-            </v-row>
-            <div class="pl-0 ml-0" id="heatMap"></div>
-          </v-card>
+        <v-col cols="7" class="pa-0 ma-0">
+          <v-col cols="12" class="pl-0 ml-0" v-show="areaUsers != null && areaUsers.length > 0">
+            <v-card class="pl-0 ml-0">
+              <v-row class="mt-0 pt-0">
+                <v-col cols="10" class="my-0 py-0">
+                  <v-select v-model="selectedUser" :items="areaUsers" label="Select User" solo></v-select>
+                </v-col>
+                <v-col cols="2" class="my-0 py-0">
+                  <v-switch v-model="isShowValues" label="Show Values"></v-switch>
+                </v-col>
+              </v-row>
+              <div class="pl-0 ml-0" id="heatMap"></div>
+            </v-card>
+          </v-col>
         </v-col>
       </v-row>
     </v-container>
@@ -45,7 +51,7 @@
 const venn = require("venn.js");
 const d3 = require("d3");
 import "parcoord-es/dist/parcoords.css";
-import ParCoords from "parcoord-es";
+import Chart from "chart.js";
 
 export default {
   name: "Home",
@@ -79,7 +85,13 @@ export default {
     pcChart: null,
     heatMapData: [],
     heatMapDataAlt: [],
-    usersColors: ["#1f76b4", "#ff7e0e", "#2ca02c", "#d62727", "#9367bd"],
+    usersColors: [
+      "#1f76b440",
+      "#ff7e0e40",
+      "#2ca02c40",
+      "#d6272740",
+      "#9367bd40"
+    ],
     activeTab: 0,
     selectedUser: null,
     users: [
@@ -92,7 +104,8 @@ export default {
     areaUsers: [],
     selectedAreaAlternativesStrings: [],
     alternativesInArrayFormat: [],
-    isShowValues: false
+    isShowValues: false,
+    sortedDimensions: []
   }),
   computed: {
     alternatives() {
@@ -107,6 +120,7 @@ export default {
       this.dimensions.length
     );
     this.usersCombinations = this.combinations(this.getUsersIndicesArray());
+    this.drawBarChart();
   },
   watch: {
     selectedDimensions() {
@@ -188,7 +202,7 @@ export default {
       return alternativePrefs;
     },
     getRandomBoolean() {
-      return Math.random() >= 0.8;
+      return Math.random() >= 0.65;
     },
     generateVennSets(dimensions) {
       let sets = [];
@@ -319,7 +333,7 @@ export default {
     },
     drawVenn() {
       let chart = venn.VennDiagram();
-      chart.width(800).height(500);
+      chart.width(800).height(450);
       let div = d3.select("#venn");
       div.datum(this.sets).call(chart);
 
@@ -389,23 +403,6 @@ export default {
       });
       return res;
     },
-    drawPc() {
-      if (this.pcChart != null) this.deletePc();
-      this.pcChart = ParCoords()("#pc")
-        .data(this.pcAlternatives)
-        .hideAxis([
-          "ID",
-          "_id",
-          "collection",
-          "geometry",
-          "gltf",
-          "image",
-          "index"
-        ])
-        .render()
-        .createAxes()
-        .reorderable();
-    },
     onVennClick(sets) {
       let usersIndices = this.getUsersIndicesFromStrings(sets);
       this.areaUsers = this.getAreaUsers(usersIndices);
@@ -415,7 +412,6 @@ export default {
       this.pcAlternatives = this.getAlternativesFromIndicesArray(
         areaAlternativesIndices
       );
-      //this.drawPc();
     },
     getAlternativesIndiciesAtArea(usersIndices) {
       let usersArrays = [];
@@ -452,33 +448,14 @@ export default {
         heatMap.removeChild(heatMap.firstChild);
       }
     },
-    setHeatMapData() {
-      let res = [];
-      this.prefs.forEach((user, i) => {
-        user.forEach((dimension, j) => {
-          res.push([
-            "U" + i,
-            this.dimensions[j],
-            this.countTrueElements(dimension)
-          ]);
-        });
-      });
-      this.heatMapData = res;
-    },
     setHeatMapDataAlt(user) {
       let res = [];
       let alternativesStrings = [];
-      /*this.prefs[user].forEach((dimension, j) => {
-        dimension.forEach((alt, k) => {
-          let color = alt ? this.usersColors[user] : "white";
-          res.push(["A" + k, this.dimensions[j], color]);
-        });
-      });*/
       this.prefs[user].forEach((dimension, j) => {
         this.pcAlternatives.forEach(alt => {
           let prefIndex = alt.index - 1;
           let prefValue = this.prefs[user][j][prefIndex];
-          let color = prefValue ? this.usersColors[user] : "black";
+          let color = prefValue ? this.usersColors[user] : "#c2c5cc40";
           res.push([
             "A" + prefIndex,
             this.dimensions[j],
@@ -515,7 +492,7 @@ export default {
       var x = d3
         .scaleBand()
         .range([0, width])
-        .domain(this.dimensions)
+        .domain(this.sortedDimensions)
         .padding(0.01);
       svg
         .append("g")
@@ -570,69 +547,9 @@ export default {
         .attr("y", function(d) {
           return y(d[0]) + 30;
         })
-        .attr("fill", "white")
+        .attr("fill", "black")
         .text(d => {
           return d[3].toFixed(2);
-        });
-    },
-    drawHeatMap() {
-      // set the dimensions and margins of the graph
-      var margin = { top: 30, right: 30, bottom: 30, left: 120 },
-        width = 600 - margin.left - margin.right,
-        height = 800 - margin.top - margin.bottom;
-
-      // append the svg object to the body of the page
-      var svg = d3
-        .select("#heatMap")
-        .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-      // Build X scales and axis:
-      var x = d3
-        .scaleBand()
-        .range([0, width])
-        .domain(["U0", "U1", "U2", "U3", "U4"])
-        .padding(0.01);
-      svg
-        .append("g")
-        .attr("transform", "translate(0," + height + ")")
-        .call(d3.axisBottom(x));
-
-      // Build X scales and axis:
-      var y = d3
-        .scaleBand()
-        .range([height, 0])
-        .domain(this.dimensions)
-        .padding(0.01);
-      svg.append("g").call(d3.axisLeft(y));
-
-      // Build color scale
-      var myColor = d3
-        .scaleLinear()
-        .range(["white", "#69b3a2"])
-        .domain([1, 100]);
-
-      //Read the data
-      svg
-        .selectAll()
-        .data(this.heatMapData, function(d) {
-          return d[0] + ":" + d[1];
-        })
-        .enter()
-        .append("rect")
-        .attr("x", function(d) {
-          return x(d[0]);
-        })
-        .attr("y", function(d) {
-          return y(d[1]);
-        })
-        .attr("width", x.bandwidth())
-        .attr("height", y.bandwidth())
-        .style("fill", d => {
-          return myColor(Math.round((d[2] / this.alternativesNumber) * 100));
         });
     },
     getAltStrings() {
@@ -650,6 +567,70 @@ export default {
       });
       console.log(res);
       return res;
+    },
+    drawBarChart() {
+      let barDimensions = this.dimensions.slice();
+      let data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+      for (let i = 0; i < data.length; i++) {
+        let res = [];
+        for (let j = 0; j < this.usersNumber; j++) {
+          res.push(this.prefs[j][i]);
+        }
+        data[i] = this.countTrueElements(this.andAllArrays(res));
+      }
+
+      barDimensions
+        .map(function(v, i) {
+          return {
+            value1: data[i],
+            value2: v
+          };
+        })
+        .sort(function(a, b) {
+          return a.value1 > b.value1 ? -1 : a.value1 == b.value1 ? 0 : 1;
+        })
+        .forEach(function(v, i) {
+          data[i] = v.value1;
+          barDimensions[i] = v.value2;
+        });
+
+      this.sortedDimensions = barDimensions;
+
+      let ctx = document.getElementById("barChart").getContext("2d");
+      new Chart(ctx, {
+        // The type of chart we want to create
+        type: "bar",
+
+        // The data for our dataset
+        data: {
+          labels: barDimensions,
+          datasets: [
+            {
+              label:
+                "Count of Liked Alternatives That All Users Agree On Per Dimension",
+              backgroundColor: "#c2c5cc",
+              borderColor: "#c2c5cc",
+              data: data
+            }
+          ],
+          options: {
+            scales: {
+              yAxes: [
+                {
+                  ticks: {
+                    stepSize: 1,
+                    autoSkip: false
+                  }
+                }
+              ]
+            }
+          }
+        },
+
+        // Configuration options go here
+        options: {}
+      });
     }
   }
 };
