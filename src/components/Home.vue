@@ -134,6 +134,7 @@ export default {
     );
     this.usersCombinations = this.combinations(this.getUsersIndicesArray());
     this.drawBarChart();
+    this.selectedDimensions.push(this.sortedDimensions[0]);
   },
   watch: {
     selectedDimensions() {
@@ -625,7 +626,7 @@ export default {
               label:
                 "Count of Liked Alternatives That All Users Agree On Per Dimension",
               backgroundColor: [
-                "#c2c5cc",
+                "red",
                 "#c2c5cc",
                 "#c2c5cc",
                 "#c2c5cc",
@@ -642,7 +643,8 @@ export default {
                 "#c2c5cc"
               ],
               borderColor: "#c2c5cc",
-              data: data
+              data: data,
+              minBarLength: 10
             }
           ]
         },
