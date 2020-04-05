@@ -746,7 +746,7 @@ export default {
       this.stackedBarChart = stackedBarChart;
 
       let canvas = document.getElementById("stackedBarChart");
-      canvas.onclick = function(evt) {
+      canvas.onclick = evt => {
         let activePoint = stackedBarChart.getElementAtEvent(evt)[0];
         let data = activePoint._chart.data;
         let datasetIndex = activePoint._datasetIndex;
@@ -756,8 +756,16 @@ export default {
         let value = data.datasets[datasetIndex].data[activePoint._index];
         console.log(label);
         console.log(value);
+
+        for (let i = 0; i < data.datasets.length; i++) {
+          data.datasets[i].backgroundColor = this.getColorsArray(
+            this.usersColors[i],
+            15
+          );
+        }
         data.datasets[datasetIndex].backgroundColor[dimensionIndex] =
           data.datasets[datasetIndex].backgroundColor[dimensionIndex] + "40";
+
         stackedBarChart.update();
       };
     }
