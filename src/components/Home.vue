@@ -683,12 +683,19 @@ export default {
         }
       });
     },
+    getColorsArray(color, num) {
+      let res = [];
+      for (let i = 0; i < num; i++) {
+        res.push(color);
+      }
+      return res;
+    },
     getStackedBarData() {
       let data = [];
       this.users.forEach((user, i) => {
         let dataObj = {};
         dataObj.label = user;
-        dataObj.backgroundColor = this.usersColors[i];
+        dataObj.backgroundColor = this.getColorsArray(this.usersColors[i], 15);
         dataObj.borderColor = this.usersColors[i];
 
         let userData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -704,7 +711,7 @@ export default {
     drawStackedBarChart() {
       console.log(this.getStackedBarData());
       let ctx = document.getElementById("stackedBarChart").getContext("2d");
-      this.stackedBarChart = new Chart(ctx, {
+      let stackedBarChart = new Chart(ctx, {
         // The type of chart we want to create
         type: "bar",
 
@@ -716,13 +723,6 @@ export default {
 
         // Configuration options go here
         options: {
-          events: ["click", "mousemove"],
-          onClick: function(c, i) {
-            let e = i[0];
-            if (e == null || e == undefined) return;
-            console.log(e);
-            console.log(i);
-          },
           responsive: true,
           tooltips: {
             mode: "index",
@@ -742,6 +742,24 @@ export default {
           }
         }
       });
+
+      this.stackedBarChart = stackedBarChart;
+
+      let canvas = document.getElementById("stackedBarChart");
+      canvas.onclick = function(evt) {
+        let activePoint = stackedBarChart.getElementAtEvent(evt)[0];
+        let data = activePoint._chart.data;
+        let datasetIndex = activePoint._datasetIndex;
+        let dimensionIndex = activePoint._index;
+        console.log(datasetIndex); //user index
+        let label = data.datasets[datasetIndex].label;
+        let value = data.datasets[datasetIndex].data[activePoint._index];
+        console.log(label);
+        console.log(value);
+        data.datasets[datasetIndex].backgroundColor[dimensionIndex] =
+          data.datasets[datasetIndex].backgroundColor[dimensionIndex] + "40";
+        stackedBarChart.update();
+      };
     }
   }
 };
