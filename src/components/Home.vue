@@ -29,13 +29,9 @@
           </v-col>
         </v-col>
         <v-col cols="7" class="pa-0 ma-0">
-          <v-col
-            cols="12"
-            class="pl-0 ml-0"
-            v-show="areaUsers != null && areaUsers.length > 0"
-          >
+          <v-col cols="12" class="pl-0 ml-0">
             <v-card class="pl-0 ml-0">
-              <v-row class="mt-0 pt-0">
+              <!--<v-row class="mt-0 pt-0">
                 <v-col cols="10" class="my-0 py-0">
                   <v-select
                     v-model="selectedUser"
@@ -51,7 +47,8 @@
                   ></v-switch>
                 </v-col>
               </v-row>
-              <div class="pl-0 ml-0" id="heatMap"></div>
+              <div class="pl-0 ml-0" id="heatMap"></div>-->
+              <canvas id="stackedBarChart"></canvas>
             </v-card>
           </v-col>
         </v-col>
@@ -98,13 +95,7 @@ export default {
     pcChart: null,
     heatMapData: [],
     heatMapDataAlt: [],
-    usersColors: [
-      "#1f76b440",
-      "#ff7e0e40",
-      "#2ca02c40",
-      "#d6272740",
-      "#9367bd40"
-    ],
+    usersColors: ["#1f76b4", "#ff7e0e", "#2ca02c", "#d62727", "#9367bd"],
     activeTab: 0,
     selectedUser: null,
     users: [
@@ -135,6 +126,7 @@ export default {
     this.usersCombinations = this.combinations(this.getUsersIndicesArray());
     this.drawBarChart();
     this.selectedDimensions.push(this.sortedDimensions[0]);
+    this.drawStackedBarChart();
   },
   watch: {
     selectedDimensions() {
@@ -685,6 +677,66 @@ export default {
                 ticks: {
                   stepSize: 1
                 }
+              }
+            ]
+          }
+        }
+      });
+    },
+    getStackedBarData() {
+      let data = [];
+      this.users.forEach((user, i) => {
+        let dataObj = {};
+        dataObj.label = user;
+        dataObj.backgroundColor = this.usersColors[i];
+        dataObj.borderColor = this.usersColors[i];
+
+        let userData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (let j = 0; j < userData.length; j++) {
+          userData[j] = this.countTrueElements(this.prefs[i][j]);
+        }
+        dataObj.data = userData;
+
+        data.push(dataObj);
+      });
+      return data;
+    },
+    drawStackedBarChart() {
+      console.log(this.getStackedBarData());
+      let ctx = document.getElementById("stackedBarChart").getContext("2d");
+      this.stackedBarChart = new Chart(ctx, {
+        // The type of chart we want to create
+        type: "bar",
+
+        // The data for our dataset
+        data: {
+          labels: this.sortedDimensions,
+          datasets: this.getStackedBarData()
+        },
+
+        // Configuration options go here
+        options: {
+          events: ["click", "mousemove"],
+          onClick: function(c, i) {
+            let e = i[0];
+            if (e == null || e == undefined) return;
+            console.log(e);
+            console.log(i);
+          },
+          responsive: true,
+          tooltips: {
+            mode: "index",
+            intersect: false
+          },
+          scales: {
+            xAxes: [
+              {
+                stacked: true
+              }
+            ],
+            yAxes: [
+              {
+                stacked: true
               }
             ]
           }
