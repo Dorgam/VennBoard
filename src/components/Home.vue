@@ -595,12 +595,12 @@ export default {
       return res;
     },
     getAreaUsers(userIndices) {
-      console.log(userIndices);
+      //console.log(userIndices);
       let res = [];
       userIndices.forEach(index => {
         res.push(this.users[index]);
       });
-      console.log(res);
+      //console.log(res);
       return res;
     },
     drawBarChart() {
@@ -685,18 +685,18 @@ export default {
             let e = i[0];
             if (e == null || e == undefined) return;
 
-            console.log(e._index);
+            //console.log(e._index);
 
             var x_value = this.data.labels[e._index];
-            var y_value = this.data.datasets[0].data[e._index];
+            //var y_value = this.data.datasets[0].data[e._index];
 
             this.data.datasets[0].backgroundColor[e._index] =
               this.data.datasets[0].backgroundColor[e._index] == "#c2c5cc"
                 ? "#6D533A"
                 : "#c2c5cc";
 
-            console.log(x_value);
-            console.log(y_value);
+            //console.log(x_value);
+            //console.log(y_value);
 
             const index = selectedDimensionsLocal.indexOf(x_value);
             if (index > -1) {
@@ -745,7 +745,7 @@ export default {
       return data;
     },
     drawStackedBarChart() {
-      console.log(this.getStackedBarData());
+      //console.log(this.getStackedBarData());
       let ctx = document.getElementById("stackedBarChart").getContext("2d");
       let stackedBarChart = new Chart(ctx, {
         // The type of chart we want to create
@@ -792,11 +792,11 @@ export default {
         let data = activePoint._chart.data;
         let datasetIndex = activePoint._datasetIndex;
         let dimensionIndex = activePoint._index;
-        console.log(datasetIndex); //user index
-        let label = data.datasets[datasetIndex].label;
-        let value = data.datasets[datasetIndex].data[activePoint._index];
-        console.log(label);
-        console.log(value);
+        //console.log(datasetIndex); //user index
+        //let label = data.datasets[datasetIndex].label;
+        //let value = data.datasets[datasetIndex].data[activePoint._index];
+        //console.log(label);
+        //console.log(value);
 
         for (let i = 0; i < data.datasets.length; i++) {
           data.datasets[i].backgroundColor = this.getColorsArray(
