@@ -48,7 +48,34 @@
                 </v-col>
               </v-row>
               <div class="pl-0 ml-0" id="heatMap"></div>-->
-              <canvas id="stackedBarChart"></canvas>
+              <canvas id="stackedBarChart" height="100px"></canvas>
+            </v-card>
+          </v-col>
+          <v-col cols="12">
+            <v-card>
+              <h1 class="pa-1">Last Query Result:</h1>
+              <v-data-iterator
+                :items="pcAlternatives"
+                hide-default-footer
+                :items-per-page="maxPerPage"
+                style="max-height: 450px"
+                class="overflow-y-auto pa-1"
+              >
+                <template v-slot:default="props">
+                  <v-row>
+                    <v-col
+                      v-for="(item, index) in props.items"
+                      :key="index"
+                      :cols="2"
+                    >
+                      <v-card>
+                        <h3>{{ "ALT#" + item.index }}</h3>
+                        <v-img :src="item.image"> </v-img>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </template>
+              </v-data-iterator>
             </v-card>
           </v-col>
         </v-col>
@@ -67,6 +94,7 @@ export default {
   name: "Home",
 
   data: () => ({
+    maxPerPage: 1000,
     sets: [],
     prefs: [],
     usersNumber: 5,
@@ -170,7 +198,8 @@ export default {
     },
     isShowValues() {
       this.drawHeatMapAlt();
-    }
+    },
+    pcAlternatives() {}
   },
   methods: {
     setupDimension() {
@@ -615,10 +644,8 @@ export default {
           labels: barDimensions,
           datasets: [
             {
-              label:
-                "Count of Liked Alternatives That All Users Agree On Per Dimension",
               backgroundColor: [
-                "red",
+                "#6D533A",
                 "#c2c5cc",
                 "#c2c5cc",
                 "#c2c5cc",
@@ -643,6 +670,15 @@ export default {
 
         // Configuration options go here
         options: {
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            fontSize: 20,
+            text:
+              "Count of Liked Alternatives That All Users Agree On Per Dimension"
+          },
           responsive: true,
           events: ["click", "mousemove"],
           onClick: function(c, i) {
@@ -656,7 +692,7 @@ export default {
 
             this.data.datasets[0].backgroundColor[e._index] =
               this.data.datasets[0].backgroundColor[e._index] == "#c2c5cc"
-                ? "red"
+                ? "#6D533A"
                 : "#c2c5cc";
 
             console.log(x_value);
@@ -723,6 +759,11 @@ export default {
 
         // Configuration options go here
         options: {
+          title: {
+            display: true,
+            fontSize: 20,
+            text: "Count of Liked Alternatives Per Dimension Per User"
+          },
           responsive: true,
           tooltips: {
             mode: "index",
@@ -766,8 +807,21 @@ export default {
         data.datasets[datasetIndex].backgroundColor[dimensionIndex] =
           data.datasets[datasetIndex].backgroundColor[dimensionIndex] + "40";
 
+        this.pcAlternatives = this.getAlternativesFromIndicesArray(
+          this.getAltIndiciesBarChart(datasetIndex, dimensionIndex)
+        );
+
         stackedBarChart.update();
       };
+    },
+    getAltIndiciesBarChart(userIndex, dimensionIndex) {
+      let res = [];
+      this.prefs[userIndex][dimensionIndex].forEach((alt, i) => {
+        if (alt) {
+          res.push(i);
+        }
+      });
+      return res;
     }
   }
 };

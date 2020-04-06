@@ -27,7 +27,7 @@ export default new Vuex.Store({
         console.log(error);
         json_data = json_data.alternatives;
         let data = getParallelDataFromAlternatives(
-          "http://142.58.183.69:5051/alternatives",
+          "http://142.58.183.69:5051",
           json_data
         );
         context.commit("setAlternatives", data);
