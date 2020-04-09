@@ -48,6 +48,13 @@
                 </v-col>
               </v-row>
               <div class="pl-0 ml-0" id="heatMap"></div>-->
+              <v-select
+                v-model="selectedSortingUser"
+                :items="sortingUsers"
+                label="Sort By"
+                chips
+                solo
+              ></v-select>
               <canvas id="stackedBarChart" height="100px"></canvas>
             </v-card>
           </v-col>
@@ -58,19 +65,15 @@
                 :items="pcAlternatives"
                 hide-default-footer
                 :items-per-page="maxPerPage"
-                style="max-height: 450px"
+                style="max-height: 370px"
                 class="overflow-y-auto pa-1"
               >
                 <template v-slot:default="props">
                   <v-row>
-                    <v-col
-                      v-for="(item, index) in props.items"
-                      :key="index"
-                      :cols="2"
-                    >
+                    <v-col v-for="(item, index) in props.items" :key="index" :cols="2">
                       <v-card>
                         <h3>{{ "ALT#" + item.index }}</h3>
-                        <v-img :src="item.image"> </v-img>
+                        <v-img :src="item.image"></v-img>
                       </v-card>
                     </v-col>
                   </v-row>
@@ -133,11 +136,22 @@ export default {
       "Stakeholder 2",
       "City"
     ],
+    sortingUsers: [
+      "Designer 1",
+      "Designer 2",
+      "Stakeholder 1",
+      "Stakeholder 2",
+      "City",
+      "Default"
+    ],
+    selectedSortingUser: "Default",
     areaUsers: [],
     selectedAreaAlternativesStrings: [],
     alternativesInArrayFormat: [],
-    isShowValues: false,
-    sortedDimensions: []
+    //isShowValues: false,
+    sortedDimensions: [],
+    usersHiddenArray: [false, false, false, false, false],
+    vennChart: null
   }),
   computed: {
     alternatives() {
@@ -196,13 +210,28 @@ export default {
       this.selectedUser = this.areaUsers[0];
       this.setupHeatMap();
     },
-    isShowValues() {
+    /*isShowValues() {
       this.drawHeatMapAlt();
-    },
-    pcAlternatives() {}
+    },*/
+    pcAlternatives() {},
+    selectedSortingUser() {
+      let newDatasets = this.getStackedBarData();
+      let newLabelsOrder = this.getStackedBarLabel(
+        newDatasets,
+        this.selectedSortingUser
+      );
+      console.log(newLabelsOrder);
+      this.stackedBarChart.data.labels = newLabelsOrder;
+      this.stackedBarChart.data.datasets = newDatasets;
+      this.stackedBarChart.update();
+      //this.usersHiddenArray = new Array(this.usersNumber).fill(false);
+      //this.setupDimension();
+    }
   },
   methods: {
     setupDimension() {
+      console.log("settinup dimension");
+      this.usersCombinations = this.combinations(this.getUsersIndicesArray());
       this.sets = this.generateVennSets(this.comparsionDimensions);
       this.drawVenn();
     },
@@ -230,11 +259,15 @@ export default {
       return dimensionPrefs;
     },
     generateAlternativePrefs(alternativesNumber) {
-      let alternativePrefs = [];
+      /*let alternativePrefs = [];
       for (let i = 0; i < alternativesNumber; i++) {
         alternativePrefs.push(this.getRandomBoolean());
       }
-      return alternativePrefs;
+      return alternativePrefs;*/
+      return this.getXTrueBooleansInYArray(
+        this.getRandomInt(80, 130),
+        alternativesNumber
+      );
     },
     getRandomBoolean() {
       return Math.random() >= 0.65;
@@ -248,8 +281,8 @@ export default {
     },
     getUsersIndicesArray() {
       let res = [];
-      for (let i = 0; i < this.usersNumber; i++) {
-        res.push(i);
+      for (let i = 0; i < this.usersHiddenArray.length; i++) {
+        if (!this.usersHiddenArray[i]) res.push(i);
       }
       return res;
     },
@@ -367,10 +400,10 @@ export default {
       return combs;
     },
     drawVenn() {
-      let chart = venn.VennDiagram();
-      chart.width(800).height(450);
+      this.vennChart = venn.VennDiagram();
+      this.vennChart.width(800).height(500);
       let div = d3.select("#venn");
-      div.datum(this.sets).call(chart);
+      div.datum(this.sets).call(this.vennChart);
 
       let tooltip = d3
         .select("body")
@@ -477,12 +510,12 @@ export default {
         pc.removeChild(pc.firstChild);
       }
     },
-    deleteHeatMap() {
+    /*deleteHeatMap() {
       let heatMap = document.querySelector("#heatMap");
       while (heatMap.firstChild) {
         heatMap.removeChild(heatMap.firstChild);
       }
-    },
+    },*/
     setHeatMapDataAlt(user) {
       let res = [];
       let alternativesStrings = [];
@@ -503,7 +536,7 @@ export default {
       this.selectedAreaAlternativesStrings = alternativesStrings;
       this.heatMapDataAlt = res;
     },
-    drawHeatMapAlt() {
+    /*drawHeatMapAlt() {
       this.deleteHeatMap();
       let hmHeight = this.pcAlternatives.length * 50 + 100;
       // set the dimensions and margins of the graph
@@ -586,7 +619,7 @@ export default {
         .text(d => {
           return d[3].toFixed(2);
         });
-    },
+    },*/
     getAltStrings() {
       let res = [];
       for (let i = 0; i < this.alternativesNumber; i++) {
@@ -645,7 +678,7 @@ export default {
           datasets: [
             {
               backgroundColor: [
-                "#6D533A",
+                "#464e51",
                 "#c2c5cc",
                 "#c2c5cc",
                 "#c2c5cc",
@@ -692,7 +725,7 @@ export default {
 
             this.data.datasets[0].backgroundColor[e._index] =
               this.data.datasets[0].backgroundColor[e._index] == "#c2c5cc"
-                ? "#6D533A"
+                ? "#464e51"
                 : "#c2c5cc";
 
             //console.log(x_value);
@@ -744,8 +777,42 @@ export default {
       });
       return data;
     },
+    getStackedBarLabel(data, sortOrder) {
+      if (sortOrder == "Default") return this.sortedDimensions;
+      let userIndex = this.users.indexOf(sortOrder);
+      let arrayData = data[userIndex].data;
+      let arrayLabel = this.sortedDimensions.slice();
+
+      //1) combine the arrays:
+      var list = [];
+      for (var j = 0; j < arrayLabel.length; j++)
+        list.push({ label: arrayLabel[j], value: arrayData[j] });
+
+      //2) sort:
+      list.sort(function(a, b) {
+        return a.value > b.value ? -1 : a.value == b.value ? 0 : 1;
+        //Sort could be modified to, for example, sort on the age
+        // if the name is the same.
+      });
+
+      //3) separate them back out:
+      for (var k = 0; k < list.length; k++) {
+        arrayLabel[k] = list[k].label;
+        arrayData[k] = list[k].value;
+      }
+
+      return arrayLabel;
+    },
     drawStackedBarChart() {
       //console.log(this.getStackedBarData());
+      let stackedBarChartData = this.getStackedBarData();
+      let stackedBarChartLabels = this.getStackedBarLabel(
+        stackedBarChartData,
+        this.selectedSortingUser
+      );
+      console.log(stackedBarChartLabels);
+      //let defaultOnClickLegend = Chart.defaults.global.legend.onClick;
+      //let vue = this;
       let ctx = document.getElementById("stackedBarChart").getContext("2d");
       let stackedBarChart = new Chart(ctx, {
         // The type of chart we want to create
@@ -753,12 +820,22 @@ export default {
 
         // The data for our dataset
         data: {
-          labels: this.sortedDimensions,
-          datasets: this.getStackedBarData()
+          labels: stackedBarChartLabels,
+          datasets: stackedBarChartData
         },
 
         // Configuration options go here
         options: {
+          legend: {
+            /*onClick: function(e, legendItem) {
+              let userIndex = vue.users.indexOf(legendItem.text);
+              let hidden = legendItem.hidden;
+              vue.usersHiddenArray[userIndex] = !hidden;
+              vue.vennChart.colourIndex = userIndex;
+              vue.setupDimension();
+              defaultOnClickLegend.call(this, e, legendItem);
+            }*/
+          },
           title: {
             display: true,
             fontSize: 20,
@@ -822,6 +899,25 @@ export default {
         }
       });
       return res;
+    },
+    getXTrueBooleansInYArray(x, y) {
+      let trueArray = new Array(x).fill(true);
+      let falseArray = new Array(y - x).fill(false);
+      let totalArray = trueArray.concat(falseArray);
+      this.shuffle(totalArray);
+      return totalArray;
+    },
+    shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    },
+    getRandomInt(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min + 1)) + min;
     }
   }
 };
