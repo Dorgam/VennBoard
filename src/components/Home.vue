@@ -220,7 +220,7 @@ export default {
         newDatasets,
         this.selectedSortingUser
       );
-      console.log(newLabelsOrder);
+      //console.log(newLabelsOrder);
       this.stackedBarChart.data.labels = newLabelsOrder;
       this.stackedBarChart.data.datasets = newDatasets;
       this.stackedBarChart.update();
@@ -230,7 +230,7 @@ export default {
   },
   methods: {
     setupDimension() {
-      console.log("settinup dimension");
+      //console.log("settinup dimension");
       this.usersCombinations = this.combinations(this.getUsersIndicesArray());
       this.sets = this.generateVennSets(this.comparsionDimensions);
       this.drawVenn();
@@ -810,7 +810,7 @@ export default {
         stackedBarChartData,
         this.selectedSortingUser
       );
-      console.log(stackedBarChartLabels);
+      //console.log(stackedBarChartLabels);
       //let defaultOnClickLegend = Chart.defaults.global.legend.onClick;
       //let vue = this;
       let ctx = document.getElementById("stackedBarChart").getContext("2d");
