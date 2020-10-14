@@ -1,4 +1,5 @@
-# vennboard
+# VennBoard
+Visualizing user preferences on multidimentional data using Venn diagrams. A research project for the Data Visualization and Visual Analytics Course at Simon Fraser University.
 
 ## Project setup
 ```
